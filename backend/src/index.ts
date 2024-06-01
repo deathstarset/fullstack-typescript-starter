@@ -6,11 +6,25 @@ import { Client } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { router as usersRouter } from "./routes/users";
 import { router as authRouter } from "./routes/auth";
-import { StatusCodes } from "http-status-codes";
-import passport from "passport";
-import "./middlewares/auth";
+
+import { errorHandler } from "./middlewares/error";
 
 dotenv.config();
+
+interface User {
+  id: string;
+  email: string;
+  username: string;
+  password: string;
+  role: "user" | "admin";
+  createdAt: Date;
+  updatedAt: Date;
+}
+declare module "express-serve-static-core" {
+  interface Request {
+    user: User;
+  }
+}
 const app: Express = express();
 const port = process.env.PORT || 3000;
 
@@ -18,7 +32,6 @@ const client = new Client({
   connectionString: process.env.DB_URL,
 });
 export const db = drizzle(client);
-app.use(passport.initialize());
 app.use(express.json());
 app.use(
   cors({
@@ -37,14 +50,7 @@ app.get(
 );
 app.use("/api/v1", usersRouter);
 app.use("/api/v1/auth", authRouter);
-app.get(
-  "/protected",
-  passport.authenticate("jwt", { session: false }),
-  expressAsyncHandler(async (req: Request, res: Response) => {
-    console.log(req.user);
-    res.status(StatusCodes.OK).json({ message: "protected" });
-  })
-);
+app.use(errorHandler);
 app.listen(port, async () => {
   console.log("Server Listening On Port " + port);
   await client.connect();

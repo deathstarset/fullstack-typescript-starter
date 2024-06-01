@@ -8,6 +8,7 @@ import {
   findUserById,
 } from "../controllers/users";
 import { StatusCodes } from "http-status-codes";
+import createHttpError from "http-errors";
 
 export interface CreateUserPayload {
   email: string;
@@ -17,13 +18,15 @@ export interface CreateUserPayload {
 export const createUser = expressAsyncHandler(
   async (req: Request<{}, {}, CreateUserPayload>, res: Response) => {
     const user = await addUser(req.body);
-
     res.status(StatusCodes.CREATED).json({ user });
   }
 );
 export const deleteUser = expressAsyncHandler(
   async (req: Request, res: Response) => {
     const { userId } = req.params;
+    if (req.user.role === "user" && req.user.id !== userId) {
+      throw new createHttpError.BadRequest("Cannot Delete Other Users Data");
+    }
     const result = await removeUser(userId);
     res.status(StatusCodes.OK).json({ result });
   }
@@ -31,6 +34,9 @@ export const deleteUser = expressAsyncHandler(
 export const getUsers = expressAsyncHandler(
   async (req: Request, res: Response) => {
     const users = await findUsers();
+    if (req.user.role === "user") {
+      throw new createHttpError.BadRequest("Cannot Access Other Users Data");
+    }
     res.status(StatusCodes.OK).json({ users });
   }
 );
@@ -46,6 +52,9 @@ export const updateUser = expressAsyncHandler(
     res: Response
   ) => {
     const { userId } = req.params;
+    if (req.user.role === "user" && req.user.id !== userId) {
+      throw new createHttpError.BadRequest("Cannot Update Other Users Data");
+    }
     const updatedUser = await editUser(req.body, userId);
     res.status(StatusCodes.OK).json({ updatedUser });
   }
@@ -54,6 +63,9 @@ export const updateUser = expressAsyncHandler(
 export const getUser = expressAsyncHandler(
   async (req: Request<{ userId: string }, {}, {}>, res: Response) => {
     const { userId } = req.params;
+    if (req.user.role === "user" && req.user.id !== userId) {
+      throw new createHttpError.BadRequest("Cannot Access Other Users Data");
+    }
     const user = await findUserById(userId);
     res.status(StatusCodes.OK).json({ user });
   }

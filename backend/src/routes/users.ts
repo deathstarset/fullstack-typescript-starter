@@ -8,15 +8,16 @@ import {
   updateUser,
 } from "../handlers/users";
 import { validateData } from "../middlewares/validation";
+import { authorization } from "../middlewares/authorization";
 
 export const router = Router();
 
 router
   .route("/users")
-  .post(validateData(createUserDto), createUser)
-  .get(getUsers);
+  .post(authorization, validateData(createUserDto), createUser)
+  .get(authorization, getUsers);
 router
   .route("/users/:userId")
-  .delete(deleteUser)
-  .patch(validateData(updateUserDto), updateUser)
-  .get(getUser);
+  .delete(authorization, deleteUser)
+  .patch(authorization, validateData(updateUserDto), updateUser)
+  .get(authorization, getUser);

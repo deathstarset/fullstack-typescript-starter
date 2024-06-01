@@ -3,7 +3,9 @@ import { Request, Response } from "express";
 import expressAsyncHandler from "express-async-handler";
 import { StatusCodes } from "http-status-codes";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import createHttpError from "http-errors";
+import { createSecretKey } from "crypto";
+import * as jose from "jose";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -27,17 +29,27 @@ export const login = expressAsyncHandler(
   async (req: Request<{}, {}, LoginPayload>, res: Response) => {
     const user = await findUserByUsername(req.body.username);
     if (!user) {
-      throw new Error("User not found");
+      throw new createHttpError.NotFound("User not found");
     }
     const match = await bcrypt.compare(req.body.password, user.password);
     if (!match) {
-      throw new Error("Wrong Credentials");
+      throw new createHttpError.Unauthorized("Wrong Credentials");
     }
 
-    const accessToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    const accessToken = await new jose.SignJWT({
+      id: user.id,
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setExpirationTime("1 day")
+      .sign(createSecretKey(process.env.JWT_SECRET, "utf-8"));
 
-    res.status(StatusCodes.OK).json({ accessToken });
+    res.status(StatusCodes.OK).json({ accessToken, role: user.role });
   }
 );
+
+export const checkToken = async (
+  req: Request<{}, {}, { accessToken: string }>,
+  res: Response
+) => {
+  res.status(StatusCodes.OK).json({ valid: true });
+};
